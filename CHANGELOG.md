@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0
+
+- **Check for Updates knows PR7-U**, the family installer. When it's installed, the update window has **Update All in PR7-U**, and a check by hand that finds PR7-Q up to date offers to open PR7-U for the rest of the family.
+
 ## 0.1.0
 
 - First release: a screenshot tool that works the way Greenshot works. It runs in the notification area with

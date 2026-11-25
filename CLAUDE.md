@@ -28,7 +28,9 @@ in the Paragon family look (PR7-Z, PR7-W, PR7-L, PR7-F, PR7-E, PR7-R, PR7-P, PR7
   no UPX, PyInstaller's bootloader built in CI, Defender scan (PR7-F's false-positive fix).
 - Updates: `pr7q/updates.py` (no Qt; GitHub's public releases/latest, User-Agent names only the app, installer asset
   `PR7-Q-Setup-*.exe`, run with /SILENT /relaunch=1) and `update_ui.py`. Same files in every family app: keep them in
-  step. `family.py`: the other family apps by their permanent AppIds.
+  step.
+  With PR7-U installed, update_ui offers it (`_family_app`, `open_family`; `answer` for tests); every app has
+  the shared family.py with all ten AppIds. `family.py`: the other family apps by their permanent AppIds.
 
 ## The look (family rules)
 
