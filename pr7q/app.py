@@ -164,7 +164,8 @@ def main(argv: list[str] | None = None) -> int:
     app.setQuitOnLastWindowClosed(False)          # it lives in the notification area
     if hand_over(command or ("" if quiet else "region")):
         return 0
-    theme.set_finish(settings.get("finish", "obsidian"))
+    from . import finish
+    theme.set_finish(finish.start(settings.get("finish", "obsidian")))
     theme.load_fonts()
     app.setPalette(theme.palette())
     app.setStyleSheet(theme.stylesheet())
@@ -174,6 +175,11 @@ def main(argv: list[str] | None = None) -> int:
         app.setWindowIcon(QIcon(icon))
     from .tray import TrayApp
     tray = TrayApp()
+    # one finish for the family: follow a switch made in another family app (finish.py)
+    from PySide6.QtCore import QTimer
+    _follow = QTimer(tray)
+    _follow.timeout.connect(lambda: finish.follow(theme.FINISH, tray.set_finish))
+    _follow.start(2000)
     listen(tray)
     if command:
         tray.start(command)

@@ -32,6 +32,8 @@ in the Paragon family look (PR7-Z, PR7-W, PR7-L, PR7-F, PR7-E, PR7-R, PR7-P, PR7
   With PR7-U installed, update_ui offers it (`_family_app`, `open_family`; `answer` for tests); every app has
   the shared family.py with all ten AppIds. `family.py`: the other family apps by their permanent AppIds.
 
+- `pr7q/finish.py` (no Qt): the family's finish (OBSIDIAN / AURORA), one choice for every app: HKCU\Software\Paragon\Family "Finish" (a file elsewhere; PARAGON_FAMILY_FILE in tests, conftest). `finish.start` at start-up, `set_finish` saves it, app.py's 2 s timer `finish.follow`s another app's switch. The same file in every family app: keep them in step.
+
 ## The look (family rules)
 
 - Theme is PR7-M's (OBSIDIAN + AURORA via `theme.set_finish`). Colours: the family's only (hues ~318 -> 0 -> 42 deg,

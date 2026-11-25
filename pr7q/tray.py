@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDia
                                QHBoxLayout, QLabel, QLineEdit, QMenu, QMessageBox, QPushButton, QSpinBox,
                                QSystemTrayIcon, QWidget)
 
-from . import __version__, capture, hotkeys, output, settings, theme
+from . import __version__, capture, finish, hotkeys, output, settings, theme
 from .editor import EditorWindow
 from .overlay import RegionPicker
 
@@ -77,6 +77,12 @@ class TrayApp(QObject):
             a.setChecked(settings.get("after", "ask") == key)
             a.triggered.connect(lambda _=False, k=key: (settings.set("after", k), self._refresh_quick(after)))
         self.after_menu = after
+        fin = m.addMenu("Finish")
+        for name in ("obsidian", "aurora"):
+            a = fin.addAction(name.upper(), lambda n=name: self.set_finish(n))
+            a.setCheckable(True)
+            a.setChecked(theme.FINISH == name)
+            self.acts[f"finish_{name}"] = a
         self.acts["preferences"] = m.addAction("&Preferences...", self.preferences)
         m.addSeparator()
         m.addAction("Check for &updates...", self.check_updates)
@@ -249,6 +255,22 @@ class TrayApp(QObject):
             ed.sync()
 
     # ------------------------------------------------------------------ settings, help, quitting
+    def set_finish(self, name: str):
+        """OBSIDIAN or AURORA, for every open editor and (finish.py) every other family app."""
+        from .editor import EXTRA
+        theme.set_finish(name)
+        finish.set(theme.FINISH)                 # every family app follows (finish.py)
+        settings.set("finish", theme.FINISH)
+        app = QApplication.instance()
+        app.setPalette(theme.palette())
+        app.setStyleSheet(theme.stylesheet())
+        for ed in self.editors:
+            ed.setStyleSheet(EXTRA.format(dim=theme.TEXT_DIM, bg=theme.BACKGROUND, edge=theme.PANEL_EDGE))
+            ed.update()
+        for n in ("obsidian", "aurora"):
+            if f"finish_{n}" in self.acts:
+                self.acts[f"finish_{n}"].setChecked(theme.FINISH == n)
+
     def preferences(self):
         dlg = PreferencesDialog(self)
         self.preferences_dialog = dlg
