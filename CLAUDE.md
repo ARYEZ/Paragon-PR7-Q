@@ -44,5 +44,6 @@ in the Paragon family look (PR7-Z, PR7-W, PR7-L, PR7-F, PR7-E, PR7-R, PR7-P, PR7
 - Behaviour questions: do what Greenshot does (keys, after-capture choices, editor tools).
 - Tests: `python -m pytest` (offscreen) on stand-in desktops (`conftest.desk`, `stripes`). Never the real settings or
   screenshot folder (conftest), or, outside CI, the registry or global keys.
-- Releases: bump `__version__` in `pr7q/__init__.py`, add a `## x.y.z` section to CHANGELOG.md; Run workflow with
-  "Publish a release" (or a `v*` tag) publishes.
+- Releases: bump `__version__` in `pr7q/__init__.py` and add a `## x.y.z` section to CHANGELOG.md, then push:
+  CI publishes that version by itself once every check has passed (the "Is this version released yet?"
+  step; this session can't start workflows or push tags). Run workflow / `v*` tags still work.
