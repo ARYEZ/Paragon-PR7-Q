@@ -17,6 +17,8 @@ NAMED_KEYS = {"print": 0x2C, "printscreen": 0x2C, "prtsc": 0x2C, "pause": 0x13, 
 NAMED_KEYS.update({f"f{i}": 0x6F + i for i in range(1, 25)})
 
 DEFAULT_KEYS = {"region": "Print", "last_region": "Shift+Print", "window": "Alt+Print", "full": "Ctrl+Print"}
+LINUX_NOTE = ("Print (region), Shift+Print (last region), Alt+Print (window) and Ctrl+Print (full screen) are Plasma "
+              "shortcuts: change them in System Settings > Keyboard > Shortcuts > Paragon PR7-Q.")
 
 
 def parse(text: str) -> tuple[int, int] | None:
@@ -73,7 +75,7 @@ class Hotkeys:
         self.unregister()
         problems = {}
         if not available():
-            return {name: "Keys that work from any program are a Windows feature." for name in keys}
+            return {name: LINUX_NOTE for name in keys}
         import ctypes
         user32 = ctypes.windll.user32
         if self._filter is None:

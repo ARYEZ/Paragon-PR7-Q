@@ -3,7 +3,10 @@ display scaling, a screen of 1280 x 720 points can be 2560 x 1440 pixels), the w
 own idea of its frame, without the invisible resize border), and the mouse pointer drawn where it was.
 
 `Desktop.image` is in pixels; `Desktop.geometry` is the desktop in Qt's points and `scale` pixels per point, so a
-region picked on screen (points) is cut out of the image with `crop`. Tests build a Desktop from any picture."""
+region picked on screen (points) is cut out of the image with `crop`. Tests build a Desktop from any picture.
+
+On Linux's Wayland desktops (Plasma) apps can't read the screen: the desktop portal takes the picture (portal.py), and
+the pointer's position isn't known there (no pointer drawn, no window under it)."""
 
 from __future__ import annotations
 
@@ -37,12 +40,38 @@ class Desktop:
         return img
 
 
-def grab(include_cursor: bool = False) -> Desktop:
-    """Every screen, side by side as Windows places them, in one picture."""
-    screens = QGuiApplication.screens()
+def on_wayland() -> bool:
+    return QGuiApplication.platformName().startswith("wayland")
+
+
+def virtual_geometry() -> QRect:
     virtual = QRect()
-    for s in screens:
+    for s in QGuiApplication.screens():
         virtual = virtual.united(s.geometry())
+    return virtual
+
+
+def from_portal(img: QImage, virtual: QRect) -> Desktop:
+    """The portal's picture of every screen as a Desktop: its pixels per point from its width."""
+    k = img.width() / max(1, virtual.width())
+    return Desktop(img.convertToFormat(QImage.Format.Format_RGB32), virtual, k, None)
+
+
+def part(d: Desktop, area: QRect) -> Desktop:
+    """One screen's part of the desktop (Wayland: one window can't cover several screens, so a region is picked on
+    the primary one)."""
+    area = area.intersected(d.geometry)
+    img = d.image.copy(d.to_pixels(area))
+    return Desktop(img, area, d.scale, d.cursor if d.cursor is not None and area.contains(d.cursor) else None)
+
+
+def grab(include_cursor: bool = False, wayland=None) -> Desktop:
+    """Every screen, side by side as Windows places them, in one picture."""
+    if wayland if wayland is not None else on_wayland():
+        from . import portal
+        return from_portal(portal.screenshot(interactive=False), virtual_geometry())
+    screens = QGuiApplication.screens()
+    virtual = virtual_geometry()
     k = max((s.devicePixelRatio() for s in screens), default=1.0)
     img = QImage(max(1, round(virtual.width() * k)), max(1, round(virtual.height() * k)), QImage.Format.Format_RGB32)
     img.fill(QColor("#000000"))

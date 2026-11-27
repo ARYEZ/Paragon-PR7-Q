@@ -33,6 +33,8 @@ class TrayApp(QObject):
         self.answers: dict = {}
         self.grabber = grabber or (lambda: capture.grab(settings.get_bool("include_cursor", False)))
         self.window_at = window_at if window_at is not None else capture.window_at
+        self.wayland = capture.on_wayland                    # tests replace these two
+        self.portal_pick = lambda: __import__("pr7q.portal", fromlist=["x"]).screenshot(interactive=True)
         self.editors: list[EditorWindow] = []
         self.last_region: QRect | None = None
         self.picker: RegionPicker | None = None
@@ -154,7 +156,23 @@ class TrayApp(QObject):
             return                          # a region is being chosen already
         self.menu.hide()
         QApplication.processEvents()
-        desk = self.grabber()               # the screen as it was, before anything of ours shows
+        from .portal import PortalError
+        if kind == "window" and self.wayland():
+            # Wayland doesn't say which window is under the pointer: Plasma's own dialog lets you pick it
+            try:
+                img = self.portal_pick()
+            except PortalError as e:
+                if str(e) != "cancelled":
+                    self._ask("error", f"The screen couldn't be captured: {e}.")
+                return
+            self.captured.emit(img, "window")
+            self.deliver(img)
+            return
+        try:
+            desk = self.grabber()           # the screen as it was, before anything of ours shows
+        except PortalError as e:
+            self._ask("error", f"The screen couldn't be captured: {e}.")
+            return
         if kind == "full":
             region = capture.active_monitor(desk) if settings.get("full_screen", "all") == "current" else desk.geometry
             self.finish(desk, region, "full")
@@ -167,6 +185,8 @@ class TrayApp(QObject):
             else:
                 self.finish(desk, desk.geometry, "full")
         else:
+            if self.wayland() and len(QApplication.screens()) > 1:
+                desk = capture.part(desk, QApplication.primaryScreen().geometry())
             self.picker = RegionPicker(desk, self.window_at)
             self.picker.picked.connect(lambda r, how: self._picked(desk, r, how))
             self.picker.cancelled.connect(self._picker_gone)
@@ -306,10 +326,46 @@ class TrayApp(QObject):
 
 
 # ---------------------------------------------------------------- start with Windows
+AUTOSTART_NAME = "paragon-pr7-q.desktop"
+
+
+def autostart_file() -> str:
+    """Linux: your own sign-in autostart entry (freedesktop.org's autostart folder; Plasma reads it)."""
+    base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
+    return os.path.join(base, "autostart", AUTOSTART_NAME)
+
+
+def system_autostart() -> bool:
+    """PR7-OS starts PR7-Q for everyone (/etc/xdg/autostart); your own entry of the same name overrides it."""
+    dirs = (os.environ.get("XDG_CONFIG_DIRS") or "/etc/xdg").split(":")
+    return any(os.path.exists(os.path.join(d, "autostart", AUTOSTART_NAME)) for d in dirs if d)
+
+
 def start_with_windows(on: bool | None = None) -> bool:
-    """Read (on=None) or set the HKCU Run entry that starts PR7-Q when you sign in."""
+    """Read (on=None) or set what starts PR7-Q when you sign in: the HKCU Run entry on Windows, an autostart entry on
+    Linux (PR7-OS's /usr/bin/pr7-q when it's there). Off while PR7-OS starts it for everyone = your own entry with
+    Hidden=true, the freedesktop.org way to switch a system autostart entry off."""
     if sys.platform != "win32":
-        return False
+        path = autostart_file()
+        if on is None:
+            if os.path.exists(path):
+                with open(path, encoding="utf-8") as f:
+                    return "\nHidden=true" not in f.read()
+            return system_autostart()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        if on:
+            import shlex
+            import shutil
+            command = shutil.which("pr7-q") or f"{shlex.quote(sys.executable)} -m pr7q"
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("[Desktop Entry]\nType=Application\nName=Paragon PR7-Q\nComment=Screenshots: Print captures a "
+                        f"region\nExec={command} --tray\nIcon=paragon-pr7-q\nX-GNOME-Autostart-enabled=true\n")
+        elif system_autostart():
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("[Desktop Entry]\nType=Application\nName=Paragon PR7-Q\nHidden=true\n")
+        elif os.path.exists(path):
+            os.remove(path)
+        return on
     import winreg
     exe = f'"{sys.executable}" --tray' if getattr(sys, "frozen", False) else \
         f'"{sys.executable.replace("python.exe", "pythonw.exe")}" -m pr7q --tray'
@@ -337,13 +393,19 @@ class PreferencesDialog(QDialog):
         self.setMinimumWidth(520)
         form = QFormLayout(self)
         self.keys = {}
-        for name, label in (("region", "CAPTURE REGION"), ("last_region", "LAST REGION"), ("window", "WINDOW"),
-                            ("full", "FULL SCREEN")):
-            e = QLineEdit(app.keys()[name])
-            e.setPlaceholderText("e.g. Print, Ctrl+Shift+4")
-            self.keys[name] = e
-            form.addRow(label, e)
-        if app.key_problems:
+        if hotkeys.available():
+            for name, label in (("region", "CAPTURE REGION"), ("last_region", "LAST REGION"), ("window", "WINDOW"),
+                                ("full", "FULL SCREEN")):
+                e = QLineEdit(app.keys()[name])
+                e.setPlaceholderText("e.g. Print, Ctrl+Shift+4")
+                self.keys[name] = e
+                form.addRow(label, e)
+        else:
+            note = QLabel(hotkeys.LINUX_NOTE)
+            note.setWordWrap(True)
+            note.setStyleSheet(f"color: {theme.TEXT_DIM};")
+            form.addRow("KEYS", note)
+        if app.key_problems and hotkeys.available():
             warn = QLabel("\n".join(dict.fromkeys(app.key_problems.values())))
             warn.setStyleSheet(f"color: {theme.LED_ORANGE};")
             warn.setWordWrap(True)
@@ -386,9 +448,8 @@ class PreferencesDialog(QDialog):
         self.cursor = QCheckBox("Include the mouse pointer")
         self.cursor.setChecked(settings.get_bool("include_cursor", False))
         form.addRow(self.cursor)
-        self.startup = QCheckBox("Start PR7-Q with Windows")
+        self.startup = QCheckBox("Start PR7-Q with Windows" if sys.platform == "win32" else "Start PR7-Q when I sign in")
         self.startup.setChecked(start_with_windows())
-        self.startup.setEnabled(sys.platform == "win32")
         form.addRow(self.startup)
         from . import update_ui
         self.updates = QCheckBox("Check for updates automatically"); self.updates.setChecked(update_ui.auto_enabled())
@@ -413,6 +474,5 @@ class PreferencesDialog(QDialog):
         settings.set("delay", self.delay.value())
         settings.set("full_screen", self.full.currentData())
         settings.set("include_cursor", self.cursor.isChecked())
-        if sys.platform == "win32":
-            start_with_windows(self.startup.isChecked())
+        start_with_windows(self.startup.isChecked())
         update_ui.set_auto(self.updates.isChecked())

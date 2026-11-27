@@ -14,6 +14,13 @@ in the Paragon family look (PR7-Z, PR7-W, PR7-L, PR7-F, PR7-E, PR7-R, PR7-P, PR7
   right click = cancel). Use `span(a, b)` for dragged boxes: `QRect(a, b)` counts both end pixels.
 - `pr7q/hotkeys.py`: RegisterHotKey + a QAbstractNativeEventFilter for WM_HOTKEY; `register` returns problems per key
   (shown once each in the tray balloon and Preferences).
+- **Linux (PR7-OS, Wayland)**: `portal.py` = org.freedesktop.portal.Screenshot through **jeepney** (PySide's QtDBus can't
+  read the a{sv} answer; Linux-only requirement): watch the request path, call, wait for Response; `capture.grab` uses it
+  when `on_wayland()` (`from_portal`, cursor None); Capture window = `portal.screenshot(interactive=True)`
+  (`TrayApp.portal_pick`); several screens: the picker gets `capture.part(desk, primary)` and shows full screen; keys are
+  Plasma shortcuts (`hotkeys.LINUX_NOTE`; PR7-OS's menu entry binds them to `pr7-q --region` etc.); start at sign-in =
+  autostart `paragon-pr7-q.desktop` (Hidden=true overrides PR7-OS's /etc/xdg one). Tests: tests/test_linux.py with
+  `standin_portal.py` (its own process) on a private dbus-daemon.
 - `pr7q/output.py` (no widgets): `file_name` (strftime + `{title}`, made safe), `free_path` (never overwrites), `save`
   (its own QFile, closed before anything else touches the file: PR7-P's Windows lesson), `copy`, `open_in_pr7p` (finds
   PR7-P through `family.py`), `print_image`.

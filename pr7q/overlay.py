@@ -7,7 +7,7 @@ Esc or a right click cancels. The arrow keys move the pointer one pixel (Shift+a
 from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QCursor, QFont, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QGuiApplication, QColor, QCursor, QFont, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QWidget
 
 from . import theme
@@ -41,8 +41,15 @@ class RegionPicker(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def show_over_desktop(self):
+        from .capture import on_wayland
         self.setGeometry(self.desktop.geometry)
-        self.show()
+        if on_wayland():                    # Wayland places windows itself: full screen covers the picked screen
+            for screen in QGuiApplication.screens():
+                if screen.geometry() == self.desktop.geometry:
+                    self.setScreen(screen)
+            self.showFullScreen()
+        else:
+            self.show()
         self.raise_()
         self.activateWindow()
         self.setFocus()

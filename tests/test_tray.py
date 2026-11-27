@@ -74,6 +74,7 @@ def test_delay(tray, qapp):
     assert not qapp.clipboard().image().isNull()
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows' own keys (on Linux they're Plasma shortcuts)")
 def test_preferences_change_the_menu(tray):
     tray.answers["preferences"] = True
     settings.set("key_region", "Ctrl+Shift+4")
@@ -122,6 +123,7 @@ def test_selftest(qapp, tmp_path):
     assert got["red_border"] and got["jpeg_ok"] and got["jpeg"].endswith(".jpg") and got["fonts"]
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows' own keys (on Linux they're Plasma shortcuts)")
 def test_a_problem_shared_by_every_key_is_said_once(tray):
     tray.key_problems = {k: "Same reason." for k in ("region", "window", "full")}
     tray.answers["preferences"] = True

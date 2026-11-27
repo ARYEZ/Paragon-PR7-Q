@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.0
+
+PR7-Q runs on Linux's Plasma desktop (PR7-OS), where apps may not read the screen themselves (Wayland):
+- **The screen comes from the desktop portal** (org.freedesktop.portal.Screenshot): Plasma takes the picture and
+  hands it over; the first time, Plasma may ask once whether PR7-Q may take screenshots. Region, last region and full
+  screen work as on Windows, with the same picker and editor.
+- **Capture window opens Plasma's own dialog**, where you pick the window (Wayland doesn't tell apps which window is
+  under the pointer).
+- **The keys are Plasma shortcuts** (Print, Shift+Print, Alt+Print, Ctrl+Print on PR7-OS; change them in System Settings
+  > Keyboard > Shortcuts); Preferences says so instead of showing Windows' key boxes.
+- **Start when I sign in** is an autostart entry; switching it off also overrides PR7-OS's start-for-everyone entry.
+- On a desktop with several screens, the region picker covers the primary one (one Wayland window can't span screens);
+  full screen still takes them all. The mouse pointer can't be included on Wayland.
+Nothing changes on Windows.
+
 ## 0.3.3
 
 - The family list (`family.py`) knows the three newest Paragon apps: PR7-HW (hardware information), PR7-BK
